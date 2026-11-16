@@ -37,10 +37,61 @@ export default function App() {
   const [city, setCity] = useState("Минск");
   const [street, setStreet] = useState("");
   const [house, setHouse] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [orderComment, setOrderComment] = useState("");
+  const [deliveryTime, setDeliveryTime] = useState("");
+  const [priority, setPriority] = useState("Обычный");
   const [addressResults, setAddressResults] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [searchingAddress, setSearchingAddress] = useState(false);
   const [addressError, setAddressError] = useState("");
+  const [editingOrder, setEditingOrder] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const selectedOrder =
+  selected?.type === "order"
+    ? orders.find((order) => order.id === selected.id)
+    : null;
+
+    function startEditingOrder() {
+  if (!selectedOrder) return;
+
+  setEditForm({
+    customerName: selectedOrder.customerName || "",
+    customerPhone: selectedOrder.customerPhone || "",
+    address: selectedOrder.address || "",
+    comment: selectedOrder.comment || "",
+    deliveryTime: selectedOrder.deliveryTime || "",
+    priority: selectedOrder.priority || "Обычный",
+    status: selectedOrder.status || "Новый",
+  });
+
+  setEditingOrder(true);
+}
+
+function saveEditedOrder() {
+  if (!editForm || !selectedOrder) return;
+
+  setOrders((items) =>
+    items.map((order) =>
+      order.id === selectedOrder.id
+        ? {
+            ...order,
+            customerName: editForm.customerName.trim(),
+            customerPhone: editForm.customerPhone.trim(),
+            address: editForm.address.trim(),
+            comment: editForm.comment.trim(),
+            deliveryTime: editForm.deliveryTime,
+            priority: editForm.priority,
+            status: editForm.status,
+          }
+        : order
+    )
+  );
+
+  setEditingOrder(false);
+  setEditForm(null);
+}
 
 
   function addCourier() {
@@ -114,19 +165,28 @@ function confirmOrder() {
     Math.max(100, ...orders.map((order) => Number(order.id) || 0)) + 1;
 
   const newOrder = {
-    id: newId,
-    address: selectedAddress.display_name,
-    status: "Новый",
-    lat: Number(selectedAddress.lat),
-    lng: Number(selectedAddress.lon),
-  };
+  id: newId,
+  address: selectedAddress.display_name,
+  customerName: customerName.trim(),
+  customerPhone: customerPhone.trim(),
+  comment: orderComment.trim(),
+  deliveryTime: deliveryTime,
+  priority: priority,
+  status: "Новый",
+  lat: Number(selectedAddress.lat),
+  lng: Number(selectedAddress.lon),
+};
 
   setOrders((items) => [...items, newOrder]);
   setOrderFormOpen(false);
   setAddressResults([]);
   setSelectedAddress(null);
   setStreet("");
-  setHouse("");
+  setHouse("");setCustomerName("");
+setCustomerPhone("");
+setOrderComment("");
+setDeliveryTime("");
+setPriority("Обычный");
   setAddressError("");
 }
 
@@ -208,8 +268,22 @@ function confirmOrder() {
                 <div className="item-icon order-bg">📦</div>
                 <div className="item-info">
                   <strong>Заказ №{order.id}</strong>
-                  <small>{order.address}</small>
-                  <small className="order-status">{order.status}</small>
+
+<small>{order.address}</small>
+
+{order.customerName && (
+  <small>👤 {order.customerName}</small>
+)}
+
+{order.customerPhone && (
+  <small>📞 {order.customerPhone}</small>
+)}
+
+{order.priority === "Срочный" && (
+  <small className="order-status">🔴 Срочный заказ</small>
+)}
+
+<small className="order-status">{order.status}</small>
                 </div>
                 <button className="delete-button" title="Удалить" onClick={(e) => { e.stopPropagation(); deleteOrder(order.id); }}>×</button>
               </div>
@@ -263,21 +337,197 @@ function confirmOrder() {
             ))}
           </MapContainer>
 
-          {selected && (
-            <div className="selection-card">
-              <button onClick={() => setSelected(null)}>×</button>
-              <small>Выбран объект</small>
-              <strong>{selected.title}</strong>
-              <span>{selected.type === "courier" ? "Курьер" : "Заказ"}</span>
+          
+{selected && (
+  <div className="selection-card">
+    <button onClick={() => {
+      setSelected(null);
+      setEditingOrder(false);
+      setEditForm(null);
+    }}>×</button>
+
+    {selected.type === "order" && selectedOrder ? (
+      <>
+        {editingOrder && editForm ? (
+          <>
+            <h3>Редактирование заказа №{selectedOrder.id}</h3>
+
+            <div className="order-details">
+              <label>Имя получателя</label>
+              <input
+                value={editForm.customerName}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  customerName: e.target.value
+                })}
+              />
+
+              <label>Телефон</label>
+              <input
+                type="tel"
+                value={editForm.customerPhone}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  customerPhone: e.target.value
+                })}
+              />
+
+              <label>Адрес доставки</label>
+              <textarea
+                value={editForm.address}
+                readOnly
+              />
+              <small>Изменение адреса с обновлением координат добавим отдельно.</small>
+
+              <label>Комментарий</label>
+              <textarea
+                value={editForm.comment}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  comment: e.target.value
+                })}
+              />
+
+              <label>Время доставки</label>
+              <input
+                type="datetime-local"
+                value={editForm.deliveryTime}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  deliveryTime: e.target.value
+                })}
+              />
+
+              <label>Приоритет</label>
+              <select
+                value={editForm.priority}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  priority: e.target.value
+                })}
+              >
+                <option value="Обычный">Обычный</option>
+                <option value="Срочный">Срочный</option>
+              </select>
+
+              <label>Статус заказа</label>
+              <select
+                value={editForm.status}
+                onChange={(e) => setEditForm({
+                  ...editForm,
+                  status: e.target.value
+                })}
+              >
+                <option value="Новый">Новый</option>
+                <option value="Назначен">Назначен</option>
+                <option value="В пути">В пути</option>
+                <option value="Доставлен">Доставлен</option>
+                <option value="Отменён">Отменён</option>
+              </select>
             </div>
-          )}
+
+            <div className="modal-actions">
+              <button
+                className="cancel-button"
+                onClick={() => {
+                  setEditingOrder(false);
+                  setEditForm(null);
+                }}
+              >
+                Отмена
+              </button>
+
+              <button
+                className="confirm-button"
+                onClick={saveEditedOrder}
+              >
+                Сохранить
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <small>Подробности заказа</small>
+            <h3>Заказ №{selectedOrder.id}</h3>
+
+            <div className="order-details">
+              <p>👤 <strong>Получатель:</strong> {selectedOrder.customerName || "Не указан"}</p>
+              <p>📞 <strong>Телефон:</strong> {selectedOrder.customerPhone || "Не указан"}</p>
+              <p>📍 <strong>Адрес:</strong> {selectedOrder.address}</p>
+              <p>💬 <strong>Комментарий:</strong> {selectedOrder.comment || "Нет комментария"}</p>
+              <p>🕒 <strong>Доставка:</strong> {selectedOrder.deliveryTime
+                ? new Date(selectedOrder.deliveryTime).toLocaleString("ru-RU")
+                : "Время не указано"}</p>
+              <p>⚡ <strong>Приоритет:</strong> {selectedOrder.priority || "Обычный"}</p>
+              <p>📦 <strong>Статус:</strong> {selectedOrder.status}</p>
+            </div>
+
+            <button
+              className="confirm-button"
+              onClick={startEditingOrder}
+            >
+              ✏️ Редактировать заказ
+            </button>
+          </>
+        )}
+      </>
+    ) : (
+      <>
+        <small>Выбран объект</small>
+        <strong>{selected.title}</strong>
+        <span>Курьер</span>
+      </>
+    )}
+  </div>
+)}
+
         </section>
       </main>
       {orderFormOpen && (
         <div className="modal-overlay">
           <div className="order-modal">
             <h2>Новый заказ</h2>
-            <p>Укажите адрес доставки</p>
+            <p>Укажите адрес доставки</p><div className="form-divider">Информация о получателе</div>
+
+<label>Имя и фамилия</label>
+<input
+  value={customerName}
+  onChange={(e) => setCustomerName(e.target.value)}
+  placeholder="Например, Иван Иванов"
+/>
+
+<label>Номер телефона</label>
+<input
+  type="tel"
+  value={customerPhone}
+  onChange={(e) => setCustomerPhone(e.target.value)}
+  placeholder="+375 29 123-45-67"
+/>
+
+<label>Комментарий для курьера</label>
+<textarea
+  value={orderComment}
+  onChange={(e) => setOrderComment(e.target.value)}
+  placeholder="Например, позвонить за 10 минут до доставки"
+/>
+
+<label>Желаемое время доставки</label>
+<input
+  type="datetime-local"
+  value={deliveryTime}
+  onChange={(e) => setDeliveryTime(e.target.value)}
+/>
+
+<label>Приоритет заказа</label>
+<select
+  value={priority}
+  onChange={(e) => setPriority(e.target.value)}
+>
+  <option value="Обычный">Обычный</option>
+  <option value="Срочный">Срочный</option>
+</select>
+
+<div className="form-divider">Адрес доставки</div>
             <label>Город</label>
             <input
             value={city}
